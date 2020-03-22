@@ -1,2 +1,1 @@
-n = 5
-print(n)
+print(5)
