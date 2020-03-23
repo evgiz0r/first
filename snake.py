@@ -1,1 +1,5 @@
-print(5)
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.plot()
+
