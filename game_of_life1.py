@@ -20,7 +20,7 @@ def main():
     pygame.display.set_caption('Board')
     clock = pygame.time.Clock()
     #font =  pygame.font.Font(None, 80)
-    dist = 0.6
+    dist = 0.8
     
     rect1 = pygame.Rect(1000,100,400,100)
     pygame.draw.rect(screen,(50,50,50),rect1)
@@ -89,7 +89,7 @@ def main():
                                 pass                                      
                             elif (x+i,y+j) in shape:
                                 n+=1
-                    if(n==3):
+                    if(n == 3):
                         to_live.add((x,y))           
 
             for item in to_kill:            
