@@ -136,16 +136,16 @@ class GameOfLife(object):
         self.mode = mode
     
     def init_buttons(self):        
-        self.buttons.append(Button(self.screen,pygame.Rect((800,100,150,50)),(200,150,50),"Pause",self.stop_resume))        
-        self.buttons.append(Button(self.screen,pygame.Rect((800,200,150,50)),(200,150,50),"New",self.randomize_board))       
-        self.buttons.append(Button(self.screen,pygame.Rect((800,300,80,50)),(150,150,50),"+",self.inc_size))        
-        self.buttons.append(Button(self.screen,pygame.Rect((900,300,80,50)),(100,150,150),"-",self.dec_size))
-        self.buttons.append(Button(self.screen,pygame.Rect((800,400,80,50)),(150,150,50),">>",self.inc_speed))        
-        self.buttons.append(Button(self.screen,pygame.Rect((900,400,80,50)),(100,150,150),"<<",self.dec_speed))
-        self.buttons.append(Button(self.screen,pygame.Rect((800,500,150,50)),(200,150,50),"Clear",self.clear_shape))       
-        self.buttons.append(Button(self.screen,pygame.Rect((800,600,150,50)),(100,200,50),"Regular",self.setmode,1))
-        self.buttons.append(Button(self.screen,pygame.Rect((800,650,150,50)),(100,200,100),"Special",self.setmode,2))
-        self.buttons.append(Button(self.screen,pygame.Rect((800,700,150,50)),(100,200,150),"Random",self.setmode,3))
+        self.buttons.append(Button(self.screen,pygame.Rect((800,50,150,50)),(150,150,150),"Pause",self.stop_resume))        
+        self.buttons.append(Button(self.screen,pygame.Rect((800,100,150,50)),(200,150,50),"New",self.randomize_board))       
+        self.buttons.append(Button(self.screen,pygame.Rect((800,150,80,50)),(150,150,50),"+",self.inc_size))        
+        self.buttons.append(Button(self.screen,pygame.Rect((900,150,80,50)),(100,150,150),"-",self.dec_size))
+        self.buttons.append(Button(self.screen,pygame.Rect((800,250,80,50)),(150,150,50),">>",self.inc_speed))        
+        self.buttons.append(Button(self.screen,pygame.Rect((900,250,80,50)),(100,150,150),"<<",self.dec_speed))
+        self.buttons.append(Button(self.screen,pygame.Rect((800,300,150,50)),(200,150,50),"Clear",self.clear_shape))       
+        self.buttons.append(Button(self.screen,pygame.Rect((800,350,150,50)),(100,200,50),"Regular",self.setmode,1))
+        self.buttons.append(Button(self.screen,pygame.Rect((800,400,150,50)),(100,150,100),"Special",self.setmode,2))
+        self.buttons.append(Button(self.screen,pygame.Rect((800,450,150,50)),(100,200,150),"Random",self.setmode,3))
         for button in self.buttons:
             button.draw()         
 
@@ -178,15 +178,6 @@ class GameOfLife(object):
         for (row,col) in self.shape:                        
             pygame.draw.rect(self.screen,self.curr_color,((row*self.square_size),(col*self.square_size),self.square_size,self.square_size))              
  
-    def my_draw(self):
-        self.delete_board()
-        self.draw_board()    
-        #for (row,col) in self.to_kill:   
-        #    if (row >= 0 and col >= 0 and row <= self.board_size and col <= self.board_size):                                                                      
-        #        pygame.draw.rect(self.screen,(0,0,0),((row*self.square_size),(col*self.square_size),self.square_size,self.square_size))              
-        #for (row,col) in self.to_live:                        
-        #    pygame.draw.rect(self.screen,self.curr_color,((row*self.square_size),(col*self.square_size),self.square_size,self.square_size))              
- 
     def update(self):
         for event in pygame.event.get():    
             self.handle_event(event)
@@ -196,7 +187,7 @@ class GameOfLife(object):
             to_check = set()
             to_live = set()
             to_kill = set()
-            
+
             for (x,y) in self.shape:
                 n = 0
                 for i in range(-1,2):
@@ -241,7 +232,7 @@ def main():
     
     while not game.is_done:
         game.update() 
-        game.my_draw()                                 
+        game.draw_board()                                
         pygame.display.flip()
         clock.tick(game.speed)
     
