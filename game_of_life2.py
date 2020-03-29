@@ -3,6 +3,15 @@ import numpy as np
 import random
 import sys
 import os
+import cProfile
+
+
+
+class Cell(object):
+    def __init__(self,color):         
+        self.age = 0
+        self.color = color
+        self.sleep = False
 
 class Button(object):
     def __init__(self,screen,rect,color,text,callback,*args):
@@ -27,9 +36,7 @@ class Button(object):
     def handle_event(self,event):
         if event.type == pygame.MOUSEBUTTONDOWN:
             if self.rect.collidepoint(pygame.mouse.get_pos()):                
-                self.callback(self,*self.args)
-               
-  
+                self.callback(*self.args)
 
 def resource_path(relative_path):
     try:
@@ -43,18 +50,16 @@ class GameOfLife(object):
     def __init__(self,screen):        
         self.dist = 0.85
         self.square_size = 10
-        self.board_size = (int)(700/self.square_size)
+        self.board_size = (int)(700/self.square_size)-1
         self.draw = True
-        self.shape = set()
+        self.shape = {}
         self.to_kill = set()
-        self.to_live = set()
         self.inc_factor = 1.5
         self.speed = 15
-        self.mode = 1
-        self.curr_color = (100,100,100)
-        self.curr_color_dir = [1,5,10]
+        self.mode = 1   
         self.mouse_clicked = False   
-        self.screen = screen     
+        self.screen = screen   
+        self.iteration_num = 0  
         self.buttons = []
         self.is_done = False
 
@@ -62,58 +67,62 @@ class GameOfLife(object):
         self.draw_board()
         self.init_buttons()
 
+        pygame.draw.line(self.screen,(255,255,255),(0,701),(701,701))      
+        pygame.draw.line(self.screen,(255,255,255),(701,0),(701,701))   
+
     def delete_board(self):
         pygame.draw.rect(self.screen,(0,0,0),(0,0,800,800))
+        pygame.draw.line(self.screen,(255,255,255),(0,700),(700,700))      
+        pygame.draw.line(self.screen,(255,255,255),(700,0),(700,700))   
 
-    def inc_speed(self,parent):
+
+    def inc_speed(self):
         if self.speed > 60:
             return
         self.speed = (int)(self.speed + 3)
 
-    def dec_speed(self,parent):
+    def dec_speed(self):
         if self.speed < 5:
             return
         self.speed = (int)(self.speed - 3)
 
-    def dec_size(self,parent):
-        if self.square_size <= 4:
+    def dec_size(self):
+        if self.square_size <= 2:
             return        
         self.square_size = (int)(self.square_size / self.inc_factor)
-        self.board_size = (int)(700/self.square_size)   
+        self.board_size = (int)(700/self.square_size)-1   
         self.randomize()        
+        self.delete_board()
         self.draw_board()
     
-    def inc_size(self,parent): 
+    def inc_size(self): 
         if self.square_size > 50:
             return        
         self.square_size = (int)(self.square_size * self.inc_factor)
         self.board_size = (int)(700/self.square_size)  
+        self.delete_board()
         self.randomize() 
         self.draw_board()
 
-    def clear_shape(self,parent):
+    def clear_shape(self):
         self.shape.clear()
         self.delete_board()
    
-    def stop_resume(self,parent):
+    def stop_resume(self):
         self.draw = not self.draw 
-        if self.draw:
-            parent.set_text("Pause")
-        else:
-            parent.set_text("Resume")
 
-    def randomize_board(self,parent):
+    def randomize_board(self):
         self.randomize()
+        self.delete_board()
         self.draw_board()
 
     def randomize(self):        
         self.shape.clear()
         self.to_kill.clear()
-        self.to_live.clear()
         for row in range(self.board_size):
             for col in range(self.board_size):
                 if random.random() > self.dist:
-                    self.shape.add((row,col)) 
+                    self.shape[(row,col)] = Cell((200,200,200)) 
    
     def handle_event(self,event):           
         if event.type == pygame.MOUSEBUTTONDOWN or (event.type == pygame.MOUSEMOTION and self.mouse_clicked):            
@@ -121,10 +130,10 @@ class GameOfLife(object):
             col = (int)(pygame.mouse.get_pos()[1]/self.square_size)                 
             if row in range(self.board_size) and col in range(self.board_size):
                 if not (row,col) in self.shape:
-                    self.shape.add((row,col))                     
-                    pygame.draw.rect(self.screen,self.curr_color,((row*self.square_size),(col*self.square_size),self.square_size,self.square_size))      
+                    self.shape[(row,col)] = Cell((200,100,200))                    
+                    pygame.draw.rect(self.screen,self.shape[(row,col)].color,((row*self.square_size),(col*self.square_size),self.square_size,self.square_size))      
                 elif not self.mouse_clicked:
-                    self.shape.remove((row,col))
+                    self.shape.pop((row,col))
                     pygame.draw.rect(self.screen,(0,0,0),((row*self.square_size),(col*self.square_size),self.square_size,self.square_size))      
             self.mouse_clicked = True
         if event.type == pygame.MOUSEBUTTONUP: 
@@ -132,11 +141,11 @@ class GameOfLife(object):
         if event.type == pygame.QUIT:
                 self.is_done = True 
 
-    def setmode(self,parent,mode):
+    def setmode(self,mode):
         self.mode = mode
     
-    def init_buttons(self):        
-        self.buttons.append(Button(self.screen,pygame.Rect((800,50,150,50)),(150,150,150),"Pause",self.stop_resume))        
+    def init_buttons(self):         
+        self.buttons.append(Button(self.screen,pygame.Rect((800,50,150,50)),(150,150,150),"Stop/Go",self.stop_resume))        
         self.buttons.append(Button(self.screen,pygame.Rect((800,100,150,50)),(200,150,50),"New",self.randomize_board))       
         self.buttons.append(Button(self.screen,pygame.Rect((800,150,80,50)),(150,150,50),"+",self.inc_size))        
         self.buttons.append(Button(self.screen,pygame.Rect((900,150,80,50)),(100,150,150),"-",self.dec_size))
@@ -150,12 +159,11 @@ class GameOfLife(object):
             button.draw()         
 
     def update_color(self):        
-        new_color = list(self.curr_color)
-        for index, c in enumerate(new_color):
-            if c <= 80 or c >= 200:
-                self.curr_color_dir[index] = - self.curr_color_dir[index]
-            new_color[index] = c + self.curr_color_dir[index]
-        self.curr_color = tuple(new_color)
+        for item in self.shape:
+            change = self.shape[item].age*5
+            if change>50:
+                change = 50
+            self.shape[item].color = (250 - change*3,150 - change*1,change*3)
 
     def should_kill(self,cell,n):
         if self.mode == 1:        
@@ -163,7 +171,7 @@ class GameOfLife(object):
         elif self.mode == 2: 
             return n == 1 or n > 3
         elif self.mode == 3:
-            return n < 2 or n > 4 
+            return n == 1 or n == 7
             
     def should_live(self,cell,n):
         if self.mode == 1:        
@@ -174,35 +182,50 @@ class GameOfLife(object):
             return n == 2
 
     def draw_board(self):
-        self.delete_board()
-        for (row,col) in self.shape:                        
-            pygame.draw.rect(self.screen,self.curr_color,((row*self.square_size),(col*self.square_size),self.square_size,self.square_size))              
+        for (row,col) in self.to_kill:
+            pygame.draw.rect(self.screen,(0,0,0),((row*self.square_size),(col*self.square_size),self.square_size,self.square_size))              
+        for (row,col) in self.shape: 
+            if self.shape[(row,col)].age > 10:
+                continue
+            pygame.draw.rect(self.screen,self.shape[(row,col)].color,((row*self.square_size),(col*self.square_size),self.square_size,self.square_size))              
  
+  
     def update(self):
+        self.update_shape()
+        self.update_color()
+
+    def update_shape(self):
         for event in pygame.event.get():    
             self.handle_event(event)
             for button in self.buttons:
                 button.handle_event(event)           
         if(self.draw):           
             to_check = set()
-            to_live = set()
-            to_kill = set()
-
+            to_live = set()                      
+            self.to_kill.clear()
+            maybe_to_wake = set()
+            self.iteration_num += 1
             for (x,y) in self.shape:
+                if self.shape[(x,y)].sleep:
+                    continue
                 n = 0
                 for i in range(-1,2):
                     for j in range(-1,2):        
                         if (i==0 and j==0):
-                            pass                                                       
-                        elif (x+i,y+j) in self.shape:                            
+                            continue             
+                        curr = (x+i,y+j)                                      
+                        if curr in self.shape: 
+                            if self.shape[curr].sleep and self.shape[x,y].age <= 2:                           
+                                maybe_to_wake.add(curr)
                             n+=1
-                        elif not (x+i,y+j) in to_check:
-                                to_check.add((x+i,y+j))
+                        elif not curr in to_check:
+                            to_check.add(curr)
                 if self.should_kill((x,y),n):
-                    to_kill.add((x,y))               
+                    self.to_kill.add((x,y))   
+
             for (x,y) in to_check:
                 if not (x >= 0 and y >= 0 and x <= self.board_size and y <= self.board_size):
-                    continue
+                    continue                
                 n = 0
                 for i in range(-1,2):
                     for j in range(-1,2): 
@@ -212,14 +235,28 @@ class GameOfLife(object):
                             n+=1
                 if self.should_live((x,y),n):
                     to_live.add((x,y))
-            self.update_color()
+            
+            for item in to_live:                                         
+                self.shape[item] = Cell((200,200,200)) 
 
-            for item in to_kill:                  
-                self.shape.remove(item)         
+            for item in self.to_kill:                  
+                self.shape.pop(item)         
 
             for item in to_live:   
                 if not item in self.shape:                         
-                    self.shape.add(item)    
+                    self.shape[item] = Cell((200,200,200)) 
+
+            for item in self.shape:                
+                self.shape[item].age += 1
+
+            for item in maybe_to_wake:                
+                self.shape[item].sleep = False
+
+            if  self.iteration_num%15 == 0:
+                for item in self.shape:       
+                    if self.shape[item].age > 10:
+                        self.shape[item].sleep = True
+
 #######
 #######
 
@@ -232,10 +269,11 @@ def main():
     
     while not game.is_done:
         game.update() 
-        game.draw_board()                                
+        game.draw_board()                                        
         pygame.display.flip()
         clock.tick(game.speed)
     
 
 if __name__ == "__main__":
-    main()
+    cProfile.run('main()')
+    #main()
