@@ -13,6 +13,21 @@ class Cell(object):
         self.color = color
         self.sleep = False
 
+class Game_state(object):
+    def __init__(self,location,screen,text,init_value):
+        self.text = text    
+        self.location = location
+        self.screen = screen
+        self.update_drawing(init_value)
+    
+    def update_drawing(self,new_value):
+        to_show = self.text + " :"  + new_value    
+        self.value = new_value;        
+        pygame.draw.rect(self.screen,(0,0,0),(self.location[0],self.location[1],100,50))  
+        font = pygame.font.SysFont(None, 30)        
+        img = font.render(to_show, True, (100,100,100))       
+        self.screen.blit(img, self.location)
+
 class Button(object):
     def __init__(self,screen,rect,color,text,callback,*args):
         self.rect = rect
@@ -47,61 +62,86 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 class GameOfLife(object): 
-    def __init__(self,screen):        
+    def __init__(self,screen): 
+
+        self.max_pixel = 600 
+
         self.dist = 0.85
         self.square_size = 10
-        self.board_size = (int)(700/self.square_size)-1
+        self.board_size = (int)(self.max_pixel/self.square_size)-1
         self.draw = True
         self.shape = {}
-        self.to_kill = set()
-        self.inc_factor = 1.5
+        self.to_kill = set()       
         self.speed = 15
         self.mode = 1   
         self.mouse_clicked = False   
         self.screen = screen   
         self.iteration_num = 0  
         self.buttons = []
+        self.game_states = {}
         self.is_done = False
 
         self.randomize()    
         self.draw_board()
         self.init_buttons()
-
-        pygame.draw.line(self.screen,(255,255,255),(0,701),(701,701))      
-        pygame.draw.line(self.screen,(255,255,255),(701,0),(701,701))   
-
+        self.draw_states()
+ 
     def delete_board(self):
-        pygame.draw.rect(self.screen,(0,0,0),(0,0,800,800))
-        pygame.draw.line(self.screen,(255,255,255),(0,700),(700,700))      
-        pygame.draw.line(self.screen,(255,255,255),(700,0),(700,700))   
-
-
-    def inc_speed(self):
-        if self.speed > 60:
-            return
-        self.speed = (int)(self.speed + 3)
-
-    def dec_speed(self):
-        if self.speed < 5:
-            return
-        self.speed = (int)(self.speed - 3)
-
-    def dec_size(self):
-        if self.square_size <= 2:
-            return        
-        self.square_size = (int)(self.square_size / self.inc_factor)
-        self.board_size = (int)(700/self.square_size)-1   
-        self.randomize()        
-        self.delete_board()
-        self.draw_board()
+        pygame.draw.rect(self.screen,(0,0,0),(0,0,self.max_pixel,self.max_pixel))         
     
-    def inc_size(self): 
-        if self.square_size > 50:
-            return        
-        self.square_size = (int)(self.square_size * self.inc_factor)
-        self.board_size = (int)(700/self.square_size)  
-        self.delete_board()
-        self.randomize() 
+    def init_buttons(self):         
+        self.buttons.append(Button(self.screen,pygame.Rect((800,50,150,50)),(200,150,50),"Boom",self.randomize_board))       
+        self.buttons.append(Button(self.screen,pygame.Rect((800,100,150,50)),(150,150,150),"Stop/Go",self.stop_resume))        
+        self.buttons.append(Button(self.screen,pygame.Rect((800,150,80,50)),(150,150,50),"+",self.change_size,1))        
+        self.buttons.append(Button(self.screen,pygame.Rect((900,150,80,50)),(100,150,150),"-",self.change_size,-1))
+        self.buttons.append(Button(self.screen,pygame.Rect((800,200,80,50)),(150,150,50),">>",self.change_game_speed,3))      
+        self.buttons.append(Button(self.screen,pygame.Rect((900,200,80,50)),(100,150,150),"<<",self.change_game_speed,-3))
+        self.buttons.append(Button(self.screen,pygame.Rect((800,250,150,50)),(200,150,50),"Clear",self.clear_shape))       
+        self.buttons.append(Button(self.screen,pygame.Rect((800,300,150,50)),(100,200,50),"Regular",self.setmode,1))
+        self.buttons.append(Button(self.screen,pygame.Rect((800,350,150,50)),(100,150,100),"Special",self.setmode,2))
+        self.buttons.append(Button(self.screen,pygame.Rect((800,400,150,50)),(100,200,150),"Random",self.setmode,3))
+        for button in self.buttons:
+            button.draw() 
+
+    def draw_states(self):
+        states_location = self.max_pixel + 50
+        speed_state = Game_state((states_location,215),self.screen,"Speed",str(self.speed))
+        self.game_states["Speed"] = speed_state
+        board_size_state = Game_state((states_location,165),self.screen,"Size",str(self.speed))
+        self.game_states["Size"] = board_size_state
+        pause_state = Game_state((states_location,115),self.screen,"State","ON")
+        self.game_states["State"] = pause_state
+        mode_state = Game_state((states_location,350),self.screen,"Mode",str(self.mode))
+        self.game_states["Mode"] = mode_state
+
+    def change_game_speed(self,factor):
+        new_speed = (int)(self.speed + factor)
+        if new_speed > 60 or new_speed < 5:
+            return
+        else:
+            self.speed = new_speed;
+            self.game_states["Speed"].update_drawing(str(self.speed))    
+
+    def change_size(self,factor):       
+        new_square_size = self.square_size + factor
+        if new_square_size > 100 or new_square_size < 1:
+            return
+        self.square_size = new_square_size        
+        self.board_size = (int)(self.max_pixel/self.square_size)-1
+        self.to_kill.clear()
+        if factor > 0:       
+            to_delete = []
+            for item in self.shape:
+                if item[0] >= self.board_size or item[1] >= self.board_size:
+                    to_delete.append(item)
+            for item in to_delete:
+                self.shape.pop(item)
+
+        for value in self.shape.values():
+            value.age = 0
+
+        self.game_states["Size"].update_drawing(str(self.board_size))    
+        self.delete_board()                    
         self.draw_board()
 
     def clear_shape(self):
@@ -110,6 +150,10 @@ class GameOfLife(object):
    
     def stop_resume(self):
         self.draw = not self.draw 
+        if self.draw:
+            self.game_states["State"].update_drawing("ON")
+        else:
+            self.game_states["State"].update_drawing("Paused")
 
     def randomize_board(self):
         self.randomize()
@@ -143,20 +187,8 @@ class GameOfLife(object):
 
     def setmode(self,mode):
         self.mode = mode
-    
-    def init_buttons(self):         
-        self.buttons.append(Button(self.screen,pygame.Rect((800,50,150,50)),(150,150,150),"Stop/Go",self.stop_resume))        
-        self.buttons.append(Button(self.screen,pygame.Rect((800,100,150,50)),(200,150,50),"New",self.randomize_board))       
-        self.buttons.append(Button(self.screen,pygame.Rect((800,150,80,50)),(150,150,50),"+",self.inc_size))        
-        self.buttons.append(Button(self.screen,pygame.Rect((900,150,80,50)),(100,150,150),"-",self.dec_size))
-        self.buttons.append(Button(self.screen,pygame.Rect((800,250,80,50)),(150,150,50),">>",self.inc_speed))        
-        self.buttons.append(Button(self.screen,pygame.Rect((900,250,80,50)),(100,150,150),"<<",self.dec_speed))
-        self.buttons.append(Button(self.screen,pygame.Rect((800,300,150,50)),(200,150,50),"Clear",self.clear_shape))       
-        self.buttons.append(Button(self.screen,pygame.Rect((800,350,150,50)),(100,200,50),"Regular",self.setmode,1))
-        self.buttons.append(Button(self.screen,pygame.Rect((800,400,150,50)),(100,150,100),"Special",self.setmode,2))
-        self.buttons.append(Button(self.screen,pygame.Rect((800,450,150,50)),(100,200,150),"Random",self.setmode,3))
-        for button in self.buttons:
-            button.draw()         
+        self.game_states["Mode"].update_drawing(str(mode))  
+            
 
     def update_color(self):        
         for item in self.shape:
@@ -188,7 +220,9 @@ class GameOfLife(object):
             if self.shape[(row,col)].age > 10:
                 continue
             pygame.draw.rect(self.screen,self.shape[(row,col)].color,((row*self.square_size),(col*self.square_size),self.square_size,self.square_size))              
- 
+        max_board_plus_3 = self.max_pixel + 3
+        pygame.draw.line(self.screen,(255,255,255),(0,max_board_plus_3),(max_board_plus_3,max_board_plus_3))      
+        pygame.draw.line(self.screen,(255,255,255),(max_board_plus_3,0),(max_board_plus_3,max_board_plus_3)) 
   
     def update(self):
         self.update_shape()
