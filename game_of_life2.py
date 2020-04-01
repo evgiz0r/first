@@ -238,14 +238,14 @@ class GameOfLife(object):
                 if random.random() > self.dist:
                     self.shape[(row,col)] = Cell((200,200,200)) 
 
-    def add_cell(self,row,col,cell):
-        self.shape[(row,col)] = cell    
+    def add_cell(self,row,col,cell):            
         if row<0 or row>self.board_size:
             return
         if col<0 or col>self.board_size:
             return
         if (row,col) in self.shape:
             return            
+        self.shape[(row,col)] = cell
         pygame.draw.rect(self.screen,self.shape[(row,col)].color,((row*self.square_size),(col*self.square_size),self.square_size,self.square_size))      
 
 
@@ -277,9 +277,10 @@ class GameOfLife(object):
     def get_gilder_fleet_shape(self):
         glider_shape = self.get_glider_shape()
         shape = [] 
-        for i in range(5):
-            for j in range(5):
-                if random.random() > 0.5:
+        size = 3
+        for i in range(-size,size):
+            for j in range(-size,size):
+                if random.random() > 0.5+(abs(i)+abs(j))*0.05:
                     for point in glider_shape:
                         shape.append((point[0]+i*5,point[1]+j*5));
         return shape
@@ -298,7 +299,7 @@ class GameOfLife(object):
         row = (int)(pos[0]/self.square_size)
         col = (int)(pos[1]/self.square_size)                 
         if row in range(self.board_size) and col in range(self.board_size):
-            if not (row,col) in self.shape:
+            if not (row,col) in self.shape or self.construct_mode != 0:
                 shape = []
                 if self.construct_mode == 0:
                     shape.append((0,0))                   
@@ -313,7 +314,6 @@ class GameOfLife(object):
                 if self.construct_mode == 5:
                     shape = self.get_space_ship2_shape()
                 self.draw_shape(row,col,shape)
-
             elif not self.mouse_clicked:
                 self.shape.pop((row,col))
                 pygame.draw.rect(self.screen,(0,0,0),((row*self.square_size),(col*self.square_size),self.square_size,self.square_size))      
