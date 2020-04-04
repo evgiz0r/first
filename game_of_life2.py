@@ -76,41 +76,38 @@ class GameOfLife(object):
         self.max_pixel = board_pixel_size        
         self.square_size = init_square_size
         self.board_size = (int)(self.max_pixel/self.square_size)-1
-        self.draw = True
+        
         self.shape = {}
         self.to_kill = set()       
-        self.speed = 15
+        self.speed = 45
         self.mode = 0  
         self.construct_mode = 0
         self.mouse_clicked = False   
         self.screen = screen   
         self.iteration_num = 0  
-        self.dist = 0.85
+        
         self.buttons = []
         self.game_states = {}
         self.is_done = False
+        self.draw = True
         self.construct_direction = 0
 
-        self.init_buttons()
+        self.init_buttons() 
         self.draw_states()
-        self.draw_legend()
-        
-        self.randomize()    
-        self.draw_board()
+        self.draw_legend()        
+        self.set_scene(1) 
  
     def delete_board(self):
         pygame.draw.rect(self.screen,(0,0,0),(0,0,self.max_pixel,self.max_pixel))         
     
     def init_buttons(self):   
         buttons_location = self.max_pixel + 200  
-        self.buttons.append(Button(self.screen,pygame.Rect((buttons_location,50,150,50)),(200,150,50),"New",self.randomize_board))       
         self.buttons.append(Button(self.screen,pygame.Rect((buttons_location,100,150,50)),(150,150,150),"Stop/Go",self.stop_resume))        
         self.buttons.append(Button(self.screen,pygame.Rect((buttons_location,150,80,50)),(150,150,50),"+",self.change_size,1))        
         self.buttons.append(Button(self.screen,pygame.Rect((buttons_location + 100,150,80,50)),(100,150,150),"-",self.change_size,-1))
         self.buttons.append(Button(self.screen,pygame.Rect((buttons_location,200,80,50)),(150,150,50),"<<",self.change_game_speed,3))      
         self.buttons.append(Button(self.screen,pygame.Rect((buttons_location + 100,200,80,50)),(100,150,150),">>",self.change_game_speed,-3))
-        self.buttons.append(Button(self.screen,pygame.Rect((buttons_location,250,150,50)),(200,150,50),"Clear",self.clear_shape))       
-       
+            
         for i in range(4):
             self.buttons.append(Button(self.screen,pygame.Rect((buttons_location + i*30,300,30,50)),(100,200-20*i,50+20*i),str(i),self.setmode,i))
 
@@ -120,6 +117,9 @@ class GameOfLife(object):
         for i in range(4):
             self.buttons.append(Button(self.screen,pygame.Rect((buttons_location + 30*i,400,30,50)),(100+20*i,200-20*i,50),str(i),self.set_construct_direction,i))
      
+        for i in range(4):
+            self.buttons.append(Button(self.screen,pygame.Rect((buttons_location + 30*i,450,30,50)),(100+20*i,200-20*i,50),str(i),self.set_scene,i))
+     
         for button in self.buttons:
             button.draw() 
 
@@ -127,7 +127,7 @@ class GameOfLife(object):
         states_location = self.max_pixel + 50
         speed_state = Game_state((states_location,215),self.screen,"Speed",self.speed)
         self.game_states["Speed"] = speed_state
-        board_size_state = Game_state((states_location,165),self.screen,"Size",self.speed)
+        board_size_state = Game_state((states_location,165),self.screen,"Size",self.board_size)
         self.game_states["Size"] = board_size_state
         pause_state = Game_state((states_location,115),self.screen,"State","Go")
         self.game_states["State"] = pause_state
@@ -139,6 +139,8 @@ class GameOfLife(object):
 
         direction_state = Game_state((states_location,400),self.screen,"Direction",0)
         self.game_states["Direction"] = direction_state
+        direction_state = Game_state((states_location,450),self.screen,"Scene","")
+        self.game_states["Scene"] = direction_state
 
         total_cells_state = Game_state((50,self.max_pixel + 20),self.screen,"Total","")
         self.game_states["Total"] = total_cells_state
@@ -156,17 +158,19 @@ class GameOfLife(object):
 
         loc = (300,self.max_pixel + 20)
         legend_text = "Legend:"
-        font = pygame.font.SysFont(None, 25)        
+        font = pygame.font.SysFont(None, 20)        
         img = font.render(legend_text, True, (200,100,100))       
         self.screen.blit(img, (loc[0],loc[1]))  
 
         modes = {0:"Game of Life",1:"Game of life++",2:"Chaos-1",3:"War-zone"}
         directions = {0:"0",1:"90",2:"180",3:"270"}
-        shapes = {0:"Cell",1:"Box",2:"Glider",3:"Glider Fleet",4:"Spaceship1",5:"Spaceship2"}
+        shapes = {0:"Cell",1:"Wall",2:"Glider",3:"Glider Fleet",4:"Spaceship1",5:"Spaceship2"}
+        scenes = {0:"Empty",1:"Gliders",2:"Spaceships"}
 
         self.draw_desc((loc[0], loc[1] + 40),modes,"Modes of board") 
-        self.draw_desc((loc[0], loc[1] + 70),shapes,"Shapes to add") 
-        self.draw_desc((loc[0], loc[1] + 100),directions,"Directions of adding shape") 
+        self.draw_desc((loc[0], loc[1] + 60),shapes,"Shapes to add") 
+        self.draw_desc((loc[0], loc[1] + 80),directions,"Directions of adding shape") 
+        self.draw_desc((loc[0], loc[1] + 100),scenes,"Scenes to set on the board") 
 
     def set_construct_direction(self,cm):
         self.construct_direction = cm
@@ -214,29 +218,12 @@ class GameOfLife(object):
         self.delete_board()                    
         self.draw_board()
 
-    def clear_shape(self):
-        self.shape.clear()
-        self.delete_board()
-   
     def stop_resume(self):
         self.draw = not self.draw 
         if self.draw:
             self.game_states["State"].update_drawing("Go")
         else:
             self.game_states["State"].update_drawing("Stop")
-
-    def randomize_board(self):
-        self.randomize()
-        self.delete_board()
-        self.draw_board()
-
-    def randomize(self):        
-        self.shape.clear()
-        self.to_kill.clear()
-        for row in range(self.board_size):
-            for col in range(self.board_size):
-                if random.random() > self.dist:
-                    self.shape[(row,col)] = Cell((200,200,200)) 
 
     def add_cell(self,row,col,cell):            
         if row<0 or row>self.board_size:
@@ -247,7 +234,6 @@ class GameOfLife(object):
             return            
         self.shape[(row,col)] = cell
         pygame.draw.rect(self.screen,self.shape[(row,col)].color,((row*self.square_size),(col*self.square_size),self.square_size,self.square_size))      
-
 
     def draw_shape(self,row,col,cells):                   
         for curr_cell in cells:   
@@ -263,12 +249,17 @@ class GameOfLife(object):
             self.add_cell(row+dir[0],col+dir[1],Cell((200,100,200)))    
 
     def get_box_shape(self):
-        shape = []
-        for i in range(-5,6):
-            for j in range(-5,6):                                                                        
-                shape.append((i,j))        
-        return shape   
-                
+        new_shape = [(0,0),(0,1),(1,0),(1,1)]      
+        return new_shape
+
+    def get_wall_shape(self,size_x,size_y):
+        ans = []
+        box_shape = self.get_box_shape()
+        for i in range(0,size_x,5):
+            for j in range(0,size_y,5):
+                for item in box_shape:
+                    ans.append((item[0]+i,item[1]+j))
+        return ans
 
     def get_glider_shape(self):
         new_shape = [(0,0),(0,1),(0,2),(1,2),(2,1)]
@@ -285,11 +276,11 @@ class GameOfLife(object):
                         shape.append((point[0]+i*5,point[1]+j*5));
         return shape
 
-    def get_space_ship1_shape(col):
+    def get_space_ship1_shape(self):
         new_shape = [(0,1),(1,0),(1,1),(1,2),(2,0),(2,2),(2,3),(3,1),(3,2),(3,3),(4,1),(4,2)]
         return new_shape;
  
-    def get_space_ship2_shape(col):
+    def get_space_ship2_shape(self):
         new_shape = [(0,3),(0,4),(1,3),(1,4),(3,2),(3,3),(3,4),(3,5),\
         (4,1),(4,2),(4,5),(4,6),(5,0),(5,7),(7,0),(7,7),(8,0),(8,2),(8,5),(8,7),\
         (9,3),(9,4),(10,3),(10,4),(11,1),(11,2),(11,5),(11,6)]
@@ -304,7 +295,7 @@ class GameOfLife(object):
                 if self.construct_mode == 0:
                     shape.append((0,0))                   
                 if self.construct_mode == 1:
-                    shape = self.get_box_shape()                                             
+                    shape = self.get_wall_shape(10,50)                                                               
                 if self.construct_mode == 2:
                     shape = self.get_glider_shape()
                 if self.construct_mode == 3:
@@ -313,6 +304,7 @@ class GameOfLife(object):
                     shape = self.get_space_ship1_shape()
                 if self.construct_mode == 5:
                     shape = self.get_space_ship2_shape()
+                   
                 self.draw_shape(row,col,shape)
             elif not self.mouse_clicked:
                 self.shape.pop((row,col))
@@ -331,6 +323,33 @@ class GameOfLife(object):
     def setmode(self,mode):
         self.mode = mode
         self.game_states["Mode"].update_drawing(mode)
+
+    def set_scene(self,scene_num):
+        self.shape.clear()
+        self.to_kill.clear()
+        base_dir = self.construct_direction
+        if scene_num == 0:
+            self.shape.clear()
+        elif scene_num == 1:
+            for i in range(1,self.board_size-1,10):
+                for j in range(1,self.board_size-1,10): 
+                    if random.random()> 0.85:
+                        self.construct_direction = random.randint(0,4)
+                        self.draw_shape(i,j,self.get_glider_shape())
+        elif scene_num == 2:
+            for i in range(1,self.board_size-1,20):
+                for j in range(1,self.board_size-1,20): 
+                    if random.random()> 0.5:
+                        self.construct_direction = random.randint(0,1)
+                        self.draw_shape(i,j,self.get_space_ship1_shape())       
+        elif scene_num == 3:
+            for j in range(1,self.board_size-1,20):
+                self.draw_shape(5,j,self.get_wall_shape(10,50))
+                     
+
+        self.construct_direction = base_dir
+        self.delete_board()
+        self.draw_board()
             
     def update_color(self):        
         for item in self.shape:
@@ -372,33 +391,112 @@ class GameOfLife(object):
         self.update_shape_data()
   
     def update(self):
-        self.update_shape()
-        self.update_color()
-
-    def update_shape(self):
         for event in pygame.event.get():    
             self.handle_event(event)
             for button in self.buttons:
-                button.handle_event(event)                              
-        if(self.draw):           
+                button.handle_event(event) 
+        self.update_shape()
+        self.update_color()
+
+    def get_near(self,row,col):
+        ans = []
+        for i in range(-1,2):
+            for j in range(-1,2):        
+                if (i==0 and j==0):
+                    continue  
+                ans.append((i,j))
+        return ans
+
+
+    def handle_gol_step(self):
+        to_check = set()
+        to_live = set()                      
+        self.to_kill.clear()        
+        self.iteration_num += 1
+        awake = set()
+        sleep = set()
+        for item , value in self.shape.items():                           
+            if value.sleep:
+                sleep.add(item)
+            else:
+                awake.add(item)
+        for (x,y) in awake:                
+            n = 0
+            for (i,j) in self.get_near(x,y):           
+                curr = (x+i,y+j)  
+                if curr in awake:
+                    n+=1                                    
+                elif curr in sleep: 
+                    curr_item = self.shape[curr]
+                    if not curr_item.age <= 2:                           
+                        curr_item.sleep = False
+                        curr_item.age = 1
+                    n+=1                        
+                elif not curr in to_check:
+                    to_check.add(curr)                                  
+            if n <= 1 or n > 3: 
+                self.to_kill.add((x,y)) 
+
+        for (x,y) in to_check:
+            if not (x >= 0 and y >= 0 and x <= self.board_size and y <= self.board_size):
+                continue                
+            n = 0
+            for (i,j) in self.get_near(x,y):                                            
+                if (x+i,y+j) in self.shape:
+                    n+=1
+                if n > 3:
+                    break
+            if n == 3:
+                to_live.add((x,y))
+
+        for item in to_live:                                         
+            self.shape[item] = Cell((200,200,200)) 
+
+        for item in awake:                
+            self.shape[item].age += 1
+
+        if  self.iteration_num%15 == 0:
+            for item in awake:   
+                sleep_item = self.shape[item]    
+                if sleep_item.age > 10:
+                    sleep_item.sleep = True
+
+        for item in self.to_kill:                  
+            self.shape.pop(item)                  
+
+        
+
+    def update_shape(self):                                             
+        if(self.draw):       
+            if self.mode == 0:
+                self.handle_gol_step()
+                return    
             to_check = set()
             to_live = set()                      
-            self.to_kill.clear()
-            maybe_to_wake = set()
+            self.to_kill.clear()           
             self.iteration_num += 1
-            for (x,y) in self.shape:
-                if self.shape[(x,y)].sleep:
-                    continue
+            awake = set()
+            sleep = set()
+            for item , value in self.shape.items():                           
+                if value.sleep:
+                    sleep.add(item)
+                else:
+                    awake.add(item)
+
+            for (x,y) in awake:                
                 n = 0
                 for i in range(-1,2):
                     for j in range(-1,2):        
                         if (i==0 and j==0):
                             continue             
-                        curr = (x+i,y+j)                                      
-                        if curr in self.shape: 
-                            if self.shape[curr].sleep and self.shape[x,y].age <= 2:                           
-                                maybe_to_wake.add(curr)
-                            n+=1
+                        curr = (x+i,y+j)  
+                        if curr in awake:
+                            n+=1                                    
+                        elif curr in sleep: 
+                            curr_item = self.shape[x,y]
+                            if curr_item.age <= 2:                           
+                                curr_item.sleep = False
+                            n+=1                        
                         elif not curr in to_check:
                             to_check.add(curr)
                 if self.should_kill((x,y),n):
@@ -420,23 +518,17 @@ class GameOfLife(object):
             for item in to_live:                                         
                 self.shape[item] = Cell((200,200,200)) 
 
-            for item in self.to_kill:                  
-                self.shape.pop(item)         
-
-            for item in to_live:   
-                if not item in self.shape:                         
-                    self.shape[item] = Cell((200,200,200)) 
-
-            for item in self.shape:                
+            for item in awake:                
                 self.shape[item].age += 1
 
-            for item in maybe_to_wake:                
-                self.shape[item].sleep = False
+            for item in self.to_kill:                  
+                self.shape.pop(item)                  
 
             if  self.iteration_num%15 == 0:
-                for item in self.shape:       
-                    if self.shape[item].age > 10:
-                        self.shape[item].sleep = True
+                for item in sleep:   
+                    sleep_item = self.shape[item]    
+                    if sleep_item.age > 10:
+                        sleep_item.sleep = True
 
 #######
 #######
@@ -446,7 +538,7 @@ def main():
     screen = pygame.display.set_mode([1200, 750])
     pygame.display.set_caption('Board')
     clock = pygame.time.Clock()   
-    game = GameOfLife(screen,600,5)
+    game = GameOfLife(screen,600,4)
     
     while not game.is_done:
         game.update() 
